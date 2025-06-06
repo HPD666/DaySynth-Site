@@ -1,4 +1,5 @@
-DaySynth
+(Still developing)
+<h1>DaySynth</h1>
 
 🎹 DaySynth – Your AI Synthesized Daily Brief
 
