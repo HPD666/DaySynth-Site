@@ -28,17 +28,18 @@
       border-right: 1.5px solid rgba(99,102,241,0.08);
     }
   </style>
+  <!-- Load React, ReactDOM, Babel in correct order -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-gradient-to-br from-indigo-50 via-sky-100 to-cyan-100 min-h-screen font-sans">
 <div id="root"></div>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script type="text/javascript">
+<script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
 // --- DATA FETCHING MOCKS (replace with real endpoints) ---
 const fetchData = async (section, token) => {
-  // Replace this block with real fetches to your backend or 3rd party APIs
   switch(section) {
     case 'weather':
       return {
@@ -96,7 +97,6 @@ const fetchData = async (section, token) => {
 };
 
 const fakeLogin = async (user, pass) => {
-  // Replace with real authentication!
   if ((user === 'HPD666' || user === 'admin') && pass === 'password') {
     return { token: "FAKE_JWT_TOKEN", name: "HPD666", avatar: "https://avatars.githubusercontent.com/u/151813341?v=4", email: "hpd666@example.com" };
   } else {
