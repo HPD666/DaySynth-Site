@@ -1,6 +1,8 @@
 (Still developing)
 <h1>DaySynth</h1>
 
+![Visitor Count](https://visitor-badge.laobi.icu/badge?page_id=HPD666.DaySynth-Site)
+
 🎹 DaySynth – Your AI Synthesized Daily Brief
 
 DaySynth is a modern, responsive personal dashboard that brings together news, weather, trends, and productivity features in a beautiful, single-page web app. Built with React and Tailwind CSS, DaySynth is perfect for professionals who want to start their day informed, organized, and inspired.
