@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DaySynth – Your AI Synthesized Daily Brief</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="description" content="DaySynth: The professional, all-in-one AI daily brief – news, weather, email, calendar, and more."/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text x='0' y='24' font-size='24'>🎹</text></svg>">
+  <style>
+    .gradient-logo {
+      background: linear-gradient(90deg,#6366f1 20%,#06b6d4 100%);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+      text-fill-color:transparent;
+    }
+    .glass {
+      background: rgba(255,255,255,0.7);
+      box-shadow: 0 8px 32px 0 rgba(31,41,55,0.12);
+      backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(255,255,255,0.3);
+    }
+    .sidebar-glass {
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 4px 32px 0 rgba(31,41,55,0.08);
+      backdrop-filter: blur(20px);
+      border-right: 1.5px solid rgba(99,102,241,0.08);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-sky-100 to-cyan-100 min-h-screen font-sans">
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script type="text/javascript">
+const { useState, useEffect, useRef } = React;
+
+// --- DATA FETCHING MOCKS (replace with real endpoints) ---
+const fetchData = async (section, token) => {
+  // Replace this block with real fetches to your backend or 3rd party APIs
+  switch(section) {
+    case 'weather':
+      return {
+        location: "London, UK",
+        summary: "🌦️ Showers, 18°C. Rain after 4pm. Umbrella advised.",
+        details: [
+          {label:"Feels Like", value:"16°C"},
+          {label:"Wind", value:"13km/h WSW"},
+          {label:"Humidity", value:"85%"},
+        ],
+        forecast: [
+          {day:"Fri", icon:"🌦️", hi:"19°C", lo:"13°C"},
+          {day:"Sat", icon:"🌤️", hi:"22°C", lo:"14°C"},
+          {day:"Sun", icon:"🌧️", hi:"17°C", lo:"12°C"},
+        ]
+      };
+    case 'news':
+      return [
+        {title:"AI Boosts Productivity", link:"#", summary:"Next-gen AI tools help people streamline work and improve daily routines."},
+        {title:"Tech Markets Rally", link:"#", summary:"Investors bet on AI as tech stocks hit new highs."},
+        {title:"Remote Work Evolves", link:"#", summary:"Hybrid models and AI assistants are shaping the future of work."}
+      ];
+    case 'email':
+      return [
+        {from:"Team Lead", subject:"Sprint Review moved", summary:"Sprint review rescheduled to 3pm. See you there!"},
+        {from:"GitHub", subject:"Repo starred!", summary:"Your project DaySynth just gained 10 stars today."},
+        {from:"LinkedIn", subject:"New connection", summary:"You have a new connection request from Alex Lee."}
+      ];
+    case 'calendar':
+      return [
+        {time:"09:30 AM", event:"Daily Standup"},
+        {time:"03:00 PM", event:"Sprint Review (Zoom)"},
+        {time:"04:00 PM", event:"Focus Time: Deep Work"}
+      ];
+    case 'trends':
+      return [
+        "#AIMonday", "#LifeHacks", "#DaySynth", "#Productivity", "#TechNews"
+      ];
+    case 'insights':
+      return [
+        "Expect rain after 4pm. Leave early if possible.",
+        "You have 2 unread emails marked as important.",
+        "Afternoon is meeting-free after 4pm. Consider deep work.",
+        "AI reminder: Drink water every hour!"
+      ];
+    case 'profile':
+      return {
+        name: "HPD666",
+        avatar: "https://avatars.githubusercontent.com/u/151813341?v=4",
+        email: "hpd666@example.com"
+      };
+    default:
+      return null;
+  }
+};
+
+const fakeLogin = async (user, pass) => {
+  // Replace with real authentication!
+  if ((user === 'HPD666' || user === 'admin') && pass === 'password') {
+    return { token: "FAKE_JWT_TOKEN", name: "HPD666", avatar: "https://avatars.githubusercontent.com/u/151813341?v=4", email: "hpd666@example.com" };
+  } else {
+    throw new Error("Invalid credentials");
+  }
+};
+
+// --- AUTH CONTEXT ---
+const AuthContext = React.createContext();
+function AuthProvider({children}) {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const login = async (username, password) => {
+    const res = await fakeLogin(username, password);
+    setUser({name: res.name, avatar: res.avatar, email: res.email});
+    setToken(res.token);
+  };
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+  };
+  return <AuthContext.Provider value={{user,token,login,logout}}>{children}</AuthContext.Provider>;
+}
+function useAuth() {
+  return React.useContext(AuthContext);
+}
+
+// --- MAIN APP ---
+function App() {
+  return (
+    <AuthProvider>
+      <Router />
+    </AuthProvider>
+  );
+}
+
+// --- ROUTER ---
+function Router() {
+  const { user } = useAuth();
+  const [route, setRoute] = useState('dashboard');
+  useEffect(() => {
+    if (!user) setRoute('login');
+  }, [user]);
+  if (!user) return <Login />;
+  return <Dashboard route={route} setRoute={setRoute} />;
+}
+
+// --- LOGIN PAGE ---
+function Login() {
+  const { login } = useAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await login(username, password);
+    } catch (err) {
+      setError("Invalid username or password.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-indigo-50 via-sky-100 to-cyan-100">
+      <div className="glass rounded-3xl px-10 py-12 shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-center mb-8">
+          <span className="text-4xl">🎹</span>
+          <span className="font-black text-3xl ml-2 gradient-logo">DaySynth</span>
+        </div>
+        <h2 className="text-2xl font-bold text-indigo-900 mb-6 text-center">Sign in to your dashboard</h2>
+        <form className="space-y-6" onSubmit={submit}>
+          <div>
+            <input className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400" type="text" placeholder="Username" autoFocus value={username} onChange={e=>setUsername(e.target.value)} required />
+          </div>
+          <div>
+            <input className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
+          </div>
+          {error && <div className="text-pink-600 text-center">{error}</div>}
+          <button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-bold py-3 rounded-xl hover:from-cyan-500 hover:to-indigo-600 transition-all" disabled={loading}>
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+        <div className="text-xs text-gray-500 mt-8 text-center">
+          <span className="font-bold">Test login:</span> HPD666 / password
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- DASHBOARD ---
+function Dashboard({route,setRoute}) {
+  const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [section, setSection] = useState('overview');
+
+  const nav = [
+    { key: 'overview', label: 'Overview', icon: "🏠" },
+    { key: 'weather', label: 'Weather', icon: "🌦️" },
+    { key: 'news', label: 'News', icon: "📰" },
+    { key: 'email', label: 'Email', icon: "📧" },
+    { key: 'calendar', label: 'Calendar', icon: "📅" },
+    { key: 'trends', label: 'Trends', icon: "🔥" },
+    { key: 'insights', label: 'AI Insights', icon: "💡" },
+    { key: 'profile', label: 'Profile', icon: "👤" },
+  ];
+
+  function NavItem({k,icon,label}) {
+    return (
+      <button onClick={()=>{setSection(k);setSidebarOpen(false);}} className={`flex items-center gap-3 px-5 py-3 rounded-xl w-full text-left hover:bg-indigo-100 font-semibold transition ${
+        section===k?"bg-gradient-to-r from-indigo-200 via-cyan-100 to-transparent":""
+      }`}>
+        <span className="text-lg">{icon}</span>
+        <span>{label}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <aside className={`sidebar-glass fixed top-0 left-0 h-full z-30 transition-transform duration-300 transform ${sidebarOpen?'translate-x-0':'-translate-x-full'} md:translate-x-0 md:static md:w-64 w-64 p-6 flex flex-col`}>
+        <div className="flex items-center gap-2 mb-8">
+          <span className="text-3xl">🎹</span>
+          <span className="font-black text-2xl gradient-logo">DaySynth</span>
+        </div>
+        <nav className="flex-1 space-y-1">
+          {nav.map(n=><NavItem key={n.key} k={n.key} icon={n.icon} label={n.label}/>)}
+        </nav>
+        <button onClick={logout} className="mt-8 w-full py-2 bg-gradient-to-r from-indigo-600 to-cyan-400 text-white font-bold rounded-xl hover:from-cyan-400 hover:to-indigo-600 transition">Log out</button>
+      </aside>
+      {/* Overlay for mobile */}
+      {sidebarOpen && <div className="fixed inset-0 z-20 bg-black/20" onClick={()=>setSidebarOpen(false)}></div>}
+      {/* Main Content */}
+      <div className="flex-1 min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-sky-50 to-cyan-50">
+        {/* Topbar */}
+        <header className="w-full flex items-center justify-between p-4 md:pl-8 bg-white/80 shadow-md sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden text-2xl p-2" onClick={()=>setSidebarOpen(v=>!v)} aria-label="Open sidebar">☰</button>
+            <span className="text-xl font-black gradient-logo hidden md:inline">DaySynth</span>
+            <span className="text-lg font-semibold text-indigo-700 ml-3">{nav.find(n=>n.key===section)?.label}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <img src={user.avatar} alt="avatar" className="w-9 h-9 rounded-full border-2 border-cyan-400"/>
+            <span className="font-semibold text-indigo-800">{user.name}</span>
+          </div>
+        </header>
+        {/* Section panels */}
+        <main className="flex-1 px-3 sm:px-8 py-8 max-w-6xl mx-auto w-full">
+          {section==='overview' && <Overview />}
+          {section==='weather' && <Weather />}
+          {section==='news' && <News />}
+          {section==='email' && <Email />}
+          {section==='calendar' && <Calendar />}
+          {section==='trends' && <Trends />}
+          {section==='insights' && <Insights />}
+          {section==='profile' && <Profile />}
+        </main>
+        <footer className="py-4 text-center text-indigo-600 bg-white/70 backdrop-blur-sm shadow-inner text-sm">
+          <span className="font-bold">DaySynth</span> &copy; 2025 — by HPD666
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// --- PANELS ---
+function Overview() {
+  const {user} = useAuth();
+  const [weather, setWeather] = useState(null);
+  const [news, setNews] = useState([]);
+  const [email, setEmail] = useState([]);
+  const [calendar, setCalendar] = useState([]);
+  const [trends, setTrends] = useState([]);
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    let mounted = true;
+    (async()=>{
+      setLoading(true);
+      const [w,n,e,c,t,i] = await Promise.all([
+        fetchData('weather'), fetchData('news'), fetchData('email'),
+        fetchData('calendar'), fetchData('trends'), fetchData('insights')
+      ]);
+      if(mounted) {
+        setWeather(w); setNews(n); setEmail(e); setCalendar(c); setTrends(t); setInsights(i);
+        setLoading(false);
+      }
+    })();
+    return ()=>{mounted=false};
+  },[]);
+
+  if (loading) return <Loader />;
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold gradient-logo mb-4">Good day, {user.name}!</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+        <div className="glass rounded-2xl p-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">🌦️</span>
+            <span className="font-semibold text-indigo-800">Weather</span>
+          </div>
+          <span className="text-lg font-medium">{weather.summary}</span>
+          <div className="flex gap-4 text-sm mt-2">
+            {weather.details.map((d,i)=><span key={i} className="px-2 py-1 rounded bg-cyan-100 text-cyan-900">{d.label}: {d.value}</span>)}
+          </div>
+        </div>
+        <div className="glass rounded-2xl p-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">📰</span>
+            <span className="font-semibold text-indigo-800">Top News</span>
+          </div>
+          {news.slice(0,2).map((n,i)=>
+            <div key={i} className="mb-1">
+              <span className="font-bold">{n.title}</span>
+              <div className="text-indigo-700 text-sm">{n.summary}</div>
+            </div>
+          )}
+        </div>
+        <div className="glass rounded-2xl p-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">💡</span>
+            <span className="font-semibold text-indigo-800">AI Insights</span>
+          </div>
+          <ul className="list-disc list-inside text-sm text-indigo-800">
+            {insights.slice(0,3).map((ins,i)=><li key={i}>{ins}</li>)}
+          </ul>
+        </div>
+        <div className="glass rounded-2xl p-6 flex flex-col gap-2 md:col-span-2 xl:col-span-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">📅</span>
+            <span className="font-semibold text-indigo-800">Today’s Agenda</span>
+          </div>
+          <ul>
+            {calendar.map((c,i)=>
+              <li key={i} className="flex gap-3 items-center text-sm mb-1">
+                <span className="font-mono bg-indigo-100 text-indigo-900 rounded px-2 py-1">{c.time}</span>
+                <span>{c.event}</span>
+              </li>
+            )}
+          </ul>
+        </div>
+        <div className="glass rounded-2xl p-6 flex flex-col gap-2 xl:col-span-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">🔥</span>
+            <span className="font-semibold text-indigo-800">Trending</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {trends.map((t,i)=>
+              <span key={i} className="bg-indigo-200 text-indigo-900 px-3 py-1 rounded-full text-xs font-semibold shadow">{t}</span>
+            )}
+          </div>
+        </div>
+        <div className="glass rounded-2xl p-6 flex flex-col gap-2 xl:col-span-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">📧</span>
+            <span className="font-semibold text-indigo-800">Email Digest</span>
+          </div>
+          <ul>
+            {email.slice(0,2).map((e,i)=>
+              <li key={i} className="mb-2">
+                <strong className="text-indigo-900">{e.from}:</strong> <span className="font-semibold">{e.subject}</span>
+                <div className="text-indigo-700 text-sm">{e.summary}</div>
+              </li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Weather() {
+  const [data, setData] = useState(null);
+  useEffect(()=>{fetchData('weather').then(setData)},[]);
+  if (!data) return <Loader/>;
+  return (
+    <div className="glass rounded-3xl p-8 max-w-2xl mx-auto">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-4xl">🌦️</span>
+        <span className="text-2xl font-bold gradient-logo">Weather</span>
+      </div>
+      <div className="text-lg mb-2 font-semibold">{data.location}</div>
+      <div className="text-xl mb-3">{data.summary}</div>
+      <div className="flex gap-4 text-base mb-4">
+        {data.details.map((d,i)=><span key={i} className="px-2 py-1 rounded bg-cyan-100 text-cyan-900">{d.label}: {d.value}</span>)}
+      </div>
+      <div className="mt-6">
+        <div className="font-semibold mb-1 text-indigo-700">3-Day Forecast</div>
+        <div className="flex gap-6">
+          {data.forecast.map((f,i)=>
+            <div key={i} className="flex flex-col items-center">
+              <span className="font-bold">{f.day}</span>
+              <span className="text-2xl">{f.icon}</span>
+              <span className="text-sm">{f.hi} / {f.lo}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+function News() {
+  const [data, setData] = useState(null);
+  useEffect(()=>{fetchData('news').then(setData)},[]);
+  if (!data) return <Loader/>;
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="glass rounded-3xl p-8 mb-6 flex items-center gap-3">
+        <span className="text-4xl">📰</span>
+        <span className="text-2xl font-bold gradient-logo">Top News</span>
+      </div>
+      <ul className="space-y-6">
+        {data.map((n,i)=>
+          <li key={i} className="glass rounded-xl p-6">
+            <div className="font-bold mb-1">{n.title}</div>
+            <div className="text-indigo-700 mb-2">{n.summary}</div>
+            <a href={n.link} className="text-cyan-700 text-sm underline">Read more</a>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+function Email() {
+  const [data, setData] = useState(null);
+  useEffect(()=>{fetchData('email').then(setData)},[]);
+  if (!data) return <Loader/>;
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="glass rounded-3xl p-8 mb-6 flex items-center gap-3">
+        <span className="text-4xl">📧</span>
+        <span className="text-2xl font-bold gradient-logo">Email Digest</span>
+      </div>
+      <ul className="space-y-6">
+        {data.map((e,i)=>
+          <li key={i} className="glass rounded-xl p-6">
+            <div><span className="font-bold">{e.from}</span> – <span className="font-semibold">{e.subject}</span></div>
+            <div className="text-indigo-700 mb-2">{e.summary}</div>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+function Calendar() {
+  const [data, setData] = useState(null);
+  useEffect(()=>{fetchData('calendar').then(setData)},[]);
+  if (!data) return <Loader/>;
+  return (
+    <div className="max-w-md mx-auto">
+      <div className="glass rounded-3xl p-8 mb-6 flex items-center gap-3">
+        <span className="text-4xl">📅</span>
+        <span className="text-2xl font-bold gradient-logo">Today’s Agenda</span>
+      </div>
+      <ul className="space-y-5">
+        {data.map((c,i)=>
+          <li key={i} className="glass rounded-xl p-5 flex items-center gap-4">
+            <span className="font-mono bg-indigo-100 text-indigo-900 rounded px-3 py-1">{c.time}</span>
+            <span className="font-medium">{c.event}</span>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+function Trends() {
+  const [data, setData] = useState(null);
+  useEffect(()=>{fetchData('trends').then(setData)},[]);
+  if (!data) return <Loader/>;
+  return (
+    <div className="glass rounded-3xl p-8 max-w-lg mx-auto flex flex-col items-center">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-4xl">🔥</span>
+        <span className="text-2xl font-bold gradient-logo">Trending Topics</span>
+      </div>
+      <div className="flex flex-wrap gap-3 mt-4 justify-center">
+        {data.map((t,i)=>
+          <span key={i} className="bg-indigo-200 text-indigo-900 px-4 py-2 rounded-full text-base font-semibold shadow">{t}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+function Insights() {
+  const [data, setData] = useState(null);
+  useEffect(()=>{fetchData('insights').then(setData)},[]);
+  if (!data) return <Loader/>;
+  return (
+    <div className="glass rounded-3xl p-8 max-w-xl mx-auto">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-4xl">💡</span>
+        <span className="text-2xl font-bold gradient-logo">AI Insights</span>
+      </div>
+      <ul className="list-disc list-inside text-indigo-800 text-base">
+        {data.map((ins,i)=><li key={i} className="mb-2">{ins}</li>)}
+      </ul>
+    </div>
+  );
+}
+function Profile() {
+  const { user } = useAuth();
+  return (
+    <div className="glass rounded-3xl p-8 max-w-lg mx-auto flex flex-col items-center">
+      <img src={user.avatar} alt="avatar" className="w-24 h-24 rounded-full border-4 border-cyan-400 mb-4 shadow"/>
+      <div className="text-2xl font-black gradient-logo mb-2">{user.name}</div>
+      <div className="text-indigo-800 mb-2">{user.email}</div>
+      <div className="text-sm text-gray-500">GitHub Copilot Chat Assistant User</div>
+      <div className="mt-8 text-center text-gray-500">
+        <span className="font-bold">DaySynth</span> — The professional, all-in-one AI daily brief.<br/>
+        Built by HPD666.
+      </div>
+    </div>
+  );
+}
+function Loader() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24">
+      <svg className="animate-spin h-10 w-10 text-indigo-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+      <div className="text-indigo-600 text-lg">Loading...</div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
